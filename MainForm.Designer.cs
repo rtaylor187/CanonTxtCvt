@@ -31,6 +31,9 @@
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.convertFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.saveFileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.saveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.convertDirectoryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -64,6 +67,9 @@
             // 
             this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.convertFileToolStripMenuItem,
+            this.saveFileToolStripMenuItem,
+            this.saveAsToolStripMenuItem,
+            this.toolStripSeparator2,
             this.convertDirectoryToolStripMenuItem,
             this.toolStripSeparator1,
             this.exitToolStripMenuItem});
@@ -74,26 +80,47 @@
             // convertFileToolStripMenuItem
             // 
             this.convertFileToolStripMenuItem.Name = "convertFileToolStripMenuItem";
-            this.convertFileToolStripMenuItem.Size = new System.Drawing.Size(217, 26);
-            this.convertFileToolStripMenuItem.Text = "Convert &File...";
-            this.convertFileToolStripMenuItem.Click += new System.EventHandler(this.convertFileToolStripMenuItem_Click);
+            this.convertFileToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.convertFileToolStripMenuItem.Text = "&Load File...";
+            this.convertFileToolStripMenuItem.Click += new System.EventHandler(this.loadFileToolStripMenuItem_Click);
+            // 
+            // saveFileToolStripMenuItem
+            // 
+            this.saveFileToolStripMenuItem.Name = "saveFileToolStripMenuItem";
+            this.saveFileToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.S)));
+            this.saveFileToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.saveFileToolStripMenuItem.Text = "&Save RTF";
+            this.saveFileToolStripMenuItem.Click += new System.EventHandler(this.saveRTFToolStripMenuItem_Click);
+            // 
+            // saveAsToolStripMenuItem
+            // 
+            this.saveAsToolStripMenuItem.Name = "saveAsToolStripMenuItem";
+            this.saveAsToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.saveAsToolStripMenuItem.Text = "Save &As...";
+            this.saveAsToolStripMenuItem.Click += new System.EventHandler(this.saveAsToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator2
+            // 
+            this.toolStripSeparator2.Name = "toolStripSeparator2";
+            this.toolStripSeparator2.Size = new System.Drawing.Size(221, 6);
             // 
             // convertDirectoryToolStripMenuItem
             // 
             this.convertDirectoryToolStripMenuItem.Name = "convertDirectoryToolStripMenuItem";
-            this.convertDirectoryToolStripMenuItem.Size = new System.Drawing.Size(217, 26);
-            this.convertDirectoryToolStripMenuItem.Text = "Convert &Directory...";
+            this.convertDirectoryToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
+            this.convertDirectoryToolStripMenuItem.Text = "&Convert Directory...";
             this.convertDirectoryToolStripMenuItem.Click += new System.EventHandler(this.convertDirectoryToolStripMenuItem_Click);
             // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(214, 6);
+            this.toolStripSeparator1.Size = new System.Drawing.Size(221, 6);
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(217, 26);
+            this.exitToolStripMenuItem.ShortcutKeys = ((System.Windows.Forms.Keys)((System.Windows.Forms.Keys.Alt | System.Windows.Forms.Keys.F4)));
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(224, 26);
             this.exitToolStripMenuItem.Text = "&Exit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
             // 
@@ -131,7 +158,7 @@
             this.splitContainer1.Panel2.Controls.Add(this.label1);
             this.splitContainer1.Panel2.Controls.Add(this.txtLog);
             this.splitContainer1.Size = new System.Drawing.Size(1127, 503);
-            this.splitContainer1.SplitterDistance = 279;
+            this.splitContainer1.SplitterDistance = 393;
             this.splitContainer1.TabIndex = 1;
             // 
             // rtxtDoc
@@ -140,7 +167,7 @@
             this.rtxtDoc.Font = new System.Drawing.Font("Courier New", 13.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(178)));
             this.rtxtDoc.Location = new System.Drawing.Point(0, 0);
             this.rtxtDoc.Name = "rtxtDoc";
-            this.rtxtDoc.Size = new System.Drawing.Size(1127, 279);
+            this.rtxtDoc.Size = new System.Drawing.Size(1127, 393);
             this.rtxtDoc.TabIndex = 0;
             this.rtxtDoc.Text = "";
             // 
@@ -175,7 +202,7 @@
             this.txtLog.Name = "txtLog";
             this.txtLog.ReadOnly = true;
             this.txtLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtLog.Size = new System.Drawing.Size(1124, 185);
+            this.txtLog.Size = new System.Drawing.Size(1124, 71);
             this.txtLog.TabIndex = 0;
             // 
             // MainForm
@@ -189,6 +216,7 @@
             this.Name = "MainForm";
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Show;
             this.Text = "Canon StarLink Txt Converter";
+            this.Load += new System.EventHandler(this.MainForm_Load);
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
             this.splitContainer1.Panel1.ResumeLayout(false);
@@ -216,6 +244,9 @@
         private System.Windows.Forms.ToolStripMenuItem convertDirectoryToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
         private System.Windows.Forms.TextBox txtLog;
+        private System.Windows.Forms.ToolStripMenuItem saveFileToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
+        private System.Windows.Forms.ToolStripMenuItem saveAsToolStripMenuItem;
     }
 }
 

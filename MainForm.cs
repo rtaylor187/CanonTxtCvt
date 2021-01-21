@@ -1,12 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace CanonTxtCvt
@@ -14,16 +8,23 @@ namespace CanonTxtCvt
     public partial class MainForm : Form
     {
         Convert wpCvt = null;       // Canon WP conversion routines object
-        String currentFile = null;  // Current Canon .TXT file path
+        String currentPath = null;  // Current Canon .TXT file path
+        String appName = null;
 
         public MainForm()
         {
             InitializeComponent();
 
             wpCvt = new Convert(rtxt: rtxtDoc);
+        }
 
+        private void MainForm_Load(object sender, EventArgs e)
+        {
             // Setup rich text control
             rtxtDoc.WordWrap = true;
+
+            // Save app title string
+            appName = this.Text;
         }
 
         private void exitToolStripMenuItem_Click(object sender, EventArgs e)
@@ -33,7 +34,8 @@ namespace CanonTxtCvt
 
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            // TODO:  Show About dialog box
+            AboutBox dlg = new AboutBox();
+            dlg.ShowDialog();
         }
 
 
@@ -51,6 +53,7 @@ namespace CanonTxtCvt
 
             txtLog.Text += logText;
 
+            // Scroll to end of log
             txtLog.Select(txtLog.TextLength, 0);
             txtLog.ScrollToCaret();
         }
@@ -132,7 +135,7 @@ namespace CanonTxtCvt
         //-------------------------------------------------------
         // Operations
 
-        private void convertFileToolStripMenuItem_Click(object sender, EventArgs e)
+        private void loadFileToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // Select file
             var filePath = string.Empty;
@@ -141,13 +144,13 @@ namespace CanonTxtCvt
             {
                 //openFileDialog.InitialDirectory = "c:\\";
                 //openFileDialog.RestoreDirectory = true;
-                openFileDialog.Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*";
-                openFileDialog.FilterIndex = 2;
+                openFileDialog.Filter = "TXT files (*.TXT)|*.TXT|All files (*.*)|*.*";
+                openFileDialog.FilterIndex = 1;
 
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     //Get the path of specified file
-                    currentFile = openFileDialog.FileName;
+                    currentPath = openFileDialog.FileName;
                 }
                 else
                     return;
@@ -157,42 +160,116 @@ namespace CanonTxtCvt
             Cursor.Current = Cursors.WaitCursor;
             btnClear.Enabled = false;
 
-            Log("Converting file: " + currentFile);
+            Log("Converting file: " + currentPath);
 
             // Load file -> rtxDoc
-            String res = wpCvt.LoadCanonFile(this, currentFile);
+            String res = wpCvt.LoadCanonFile(this, currentPath);
             if (!String.IsNullOrEmpty(res))
                 Log(res);
+
+            UpdateTitleBar();
 
             // Set cursor as default arrow
             Cursor.Current = Cursors.Default;
             btnClear.Enabled = true;
         }
 
+        /// <summary>
+        /// Update title bar with name of current documet
+        /// </summary>
+        private void UpdateTitleBar()
+        {
+            string fileName = Path.GetFileName(currentPath);
+
+            this.Text = appName + " - " + fileName;
+        }
+
+        private void saveRTFToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (String.IsNullOrEmpty(currentPath))
+            {
+                MessageBox.Show("No document loaded.");
+                return;
+            }
+
+            // Default save path = input file w/.rtf extension
+            String savePath = Path.ChangeExtension(currentPath, "rtf");
+
+            rtxtDoc.SaveFile(savePath);
+        }
+
+        /// <summary>
+        /// Prompt for filename and let user save (still RTF)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (String.IsNullOrEmpty(currentPath))
+            {
+                MessageBox.Show("No document loaded.");
+                return;
+            }
+
+            // Default save path = input file w/.rtf extension
+            String savePath = Path.ChangeExtension(currentPath, "rtf");
+
+            using (SaveFileDialog fileDialog = new SaveFileDialog())
+            {
+                fileDialog.Filter = "RTF files (*.RTF)|*.RTF";
+                fileDialog.FilterIndex = 1;
+                fileDialog.FileName = Path.GetFileName(savePath);
+                fileDialog.DefaultExt = "rtf";
+
+                if (fileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    // Get the path of specified file
+                    currentPath = fileDialog.FileName;
+                    rtxtDoc.SaveFile(currentPath);
+                    UpdateTitleBar();
+                }
+            }
+        }
+
         private void convertDirectoryToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            // Select directory
+            // Select directory of files
             String dir = @"C:\Users\rtaylor\Desktop\Canon WP Diskettes\Diskettes\Bishop Nominations\Files";
+            using (var fbd = new FolderBrowserDialog())
+            {
+                DialogResult result = fbd.ShowDialog();
+
+                if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(fbd.SelectedPath))
+                {
+                    dir = fbd.SelectedPath;
+                }
+                else
+                {
+                    return;
+                }
+            }
 
             Log("Converting directory: " + dir);
 
-            // TODO:  Validate that directory is Canon StarLink WP diskette
-
-            // TODO:  Loop through .txt files in directory
+            // Loop through .txt files in directory
             string[] fileEntries = Directory.GetFiles(dir, "*.txt");
             foreach (string filePath in fileEntries)
             {
-                currentFile = filePath;
+                currentPath = filePath;
 
-                Log("Converting file: " + currentFile);
+                Log("Converting file: " + currentPath);
 
-                // Convert file -> rtxDoc
-                String res = wpCvt.LoadCanonFile(this, currentFile);
+                // Load/convert file -> rtxDoc
+                String res = wpCvt.LoadCanonFile(this, currentPath);
                 if (!String.IsNullOrEmpty(res))
                     Log(res);
 
-                // TODO:  Save rtxDoc -> .RTF
+                UpdateTitleBar();
+
+                String savePath = Path.ChangeExtension(currentPath, "rtf");
+                rtxtDoc.SaveFile(savePath);
             }
+
         }
     }
 }
