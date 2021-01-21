@@ -54,9 +54,17 @@ NOTE:  The SJ300 often doesn't end a document file at the end of content data, b
 
 ## Canon Word Processor Document Format
 
-{To Document}
+{To be documented...}
 
 
 ## CanonTxtCvt Program Notes
 
-  v0.3 - first upload, works to convert content of most TXT files.  Formatting not converted yet.
+  v0.3 - 1/20/2021 - First upload, converts content of most TXT files.
+                   - Converts symbol and special characters to Unicode (where possible)
+                   - No text formatting (yet)
+
+  v0.4 - 1/21/2021 - Implemented basic text styles (font face/size, bold, italic, outline)
+                   - Left/Center/Right paragraph justification
+                   - Minor U-I tweaks
+
+  v0.5 - TBD       - RTF output
