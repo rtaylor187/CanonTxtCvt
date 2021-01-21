@@ -50,6 +50,9 @@ namespace CanonTxtCvt
                 txtLog.Text += Environment.NewLine;
 
             txtLog.Text += logText;
+
+            txtLog.Select(txtLog.TextLength, 0);
+            txtLog.ScrollToCaret();
         }
 
         public void HexLog(byte[] bytes, int bytesPerLine = 16)
@@ -134,9 +137,6 @@ namespace CanonTxtCvt
             // Select file
             var filePath = string.Empty;
 
-            // static name for testing
-            //currentFile = @"C:\Users\rtaylor\Desktop\Canon WP Diskettes\Test Diskette 3\Files\Symbols.txt";
-
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
                 //openFileDialog.InitialDirectory = "c:\\";
@@ -149,14 +149,24 @@ namespace CanonTxtCvt
                     //Get the path of specified file
                     currentFile = openFileDialog.FileName;
                 }
+                else
+                    return;
             }
  
+            // Set cursor as hourglass
+            Cursor.Current = Cursors.WaitCursor;
+            btnClear.Enabled = false;
+
             Log("Converting file: " + currentFile);
 
             // Load file -> rtxDoc
             String res = wpCvt.LoadCanonFile(this, currentFile);
             if (!String.IsNullOrEmpty(res))
                 Log(res);
+
+            // Set cursor as default arrow
+            Cursor.Current = Cursors.Default;
+            btnClear.Enabled = true;
         }
 
         private void convertDirectoryToolStripMenuItem_Click(object sender, EventArgs e)

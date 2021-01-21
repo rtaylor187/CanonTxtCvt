@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -8,26 +9,158 @@ using System.Windows.Forms;
 
 namespace CanonTxtCvt
 {
+    enum Face
+    {
+        Courier = 1,    // monospace (default)
+        Script = 2,     // script
+        Swiss = 3,      // Helvetica
+        Dutch = 4,      // Times Roman
+        Humanist = 5    // Calibri? Carlito? Corbel?
+    }
+    enum Compress
+    {
+        Normal = 0,
+        Extended = 1,
+        Condensed = 2
+    }
+
+    enum Baseline
+    {
+        Regular = 0,
+        Superscript = 1,
+        Subscript = 2
+    }
+
+    enum Shading
+    {
+        None = 1,
+        Shading1 = 2,
+        Shading2 = 3,
+        Shading3 = 4,
+        Shading4 = 5,
+        Shading5 = 6,
+    }
+
+    enum ParagraphJust
+    {
+        Left = 0,
+        Center,
+        Right,
+        Indent,
+        Full
+    }
+
+
+    class StyleInfo
+    {
+        public Face typeFace;
+        public ushort typeSize;
+        public bool isUnderline;
+        public bool isBold;
+        public bool isItalic;
+
+        public ParagraphJust justification;
+
+        public bool isOutline;
+        public Shading shade;
+        public Compress typeCompress;
+
+        public Baseline typeBaseline;
+        public float lineSpacing;      // 0.75, 1.0, 1.5, 2.0, 2.5 or 3.0
+
+
+        /// <summary>
+        /// Default settings constructor
+        /// </summary>
+        public StyleInfo()
+        {
+            typeFace = Face.Courier;
+            typeSize = 12;
+            typeCompress = Compress.Normal;
+            typeBaseline = Baseline.Regular;
+            isUnderline = false;
+            isBold = false;
+            isItalic = false;
+            isOutline = false;
+            shade = Shading.None;
+            justification = ParagraphJust.Left;
+            lineSpacing = 1.0f;
+        }
+
+        /// <summary>
+        /// Copy constructor
+        /// </summary>
+        /// <param name="style"></param>
+        public StyleInfo(StyleInfo style)
+        {
+            typeFace = style.typeFace;
+            typeSize = style.typeSize;
+            typeCompress = style.typeCompress;
+            typeBaseline = style.typeBaseline;
+            isUnderline = style.isUnderline;
+            isBold = style.isBold;
+            isItalic = style.isItalic;
+            isOutline = style.isOutline;
+            shade = style.shade;
+            justification = style.justification;
+            lineSpacing = style.lineSpacing;
+        }
+
+        public FontStyle getFontStyle()
+        {
+            FontStyle style = FontStyle.Regular;
+            if (isBold) style |= FontStyle.Bold;
+            if (isItalic) style |= FontStyle.Italic;
+            if (isUnderline) style |= FontStyle.Underline;
+
+            return style;
+        }
+
+        public String getFontName()
+        {
+            string fontName;
+            switch (typeFace)
+            {
+                default:
+                case Face.Courier: fontName = "Courier New"; break;
+
+                case Face.Script: fontName = "Segoe Script"; break;
+                case Face.Swiss: fontName = "Arial"; break;
+                case Face.Dutch: fontName = "Times New Roman"; break;
+                case Face.Humanist: fontName = "Carlito"; break;
+            }
+
+            return fontName;
+        }
+    }
+
     class Convert
     {
-        static MainForm form;
-        static RichTextBox rTxtCtrl;
+        MainForm form;
+        RichTextBox rTxtCtrl;
+
+        SortedList<int, StyleInfo> styleSet = new SortedList<int, StyleInfo>();
 
         public Convert(RichTextBox rtxt)
         {
             rTxtCtrl = rtxt;
         }
 
+        /// <summary>
+        /// Load Canon WP file -> rTxtCtrl
+        /// </summary>
+        /// <param name="form"></param>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
         public String LoadCanonFile(MainForm form, string filePath)
         {
-            Convert.form = form;
+            this.form = form;
 
             // Validiate file
             if (!File.Exists(filePath))
                 return "Convert.LoadCanonFile() - ERROR - File doesn't exist.";
 
-            // Canon WP file load -> rTxtCtrl
-            //
+            // Reset rich-text control
             rTxtCtrl.Clear();
 
             byte[] fileBytes = File.ReadAllBytes(filePath);
@@ -80,7 +213,6 @@ namespace CanonTxtCvt
             short val2 = BitConverter.ToInt16(fileBytes, 0x7A);
             int txtLen = BitConverter.ToInt32(fileBytes, 0x7C);
 
-            // 
             String hdrMisc = BitConverter.ToString(fileBytes, 0x80, 136);
             byte[] docHdrMisc = new byte[136];
             Array.Copy(fileBytes, 0x80, docHdrMisc, 0, 136);
@@ -91,8 +223,221 @@ namespace CanonTxtCvt
             byte[] docText = new byte[txtLen];
             Array.Copy(fileBytes, 0x108, docText, 0, txtLen - 0x88);
 
+            // start w/default style
+            styleSet.Clear();
+            styleSet.Add(0, new StyleInfo());
+
             return ParseText(docText, docHdrMisc);
         }
+
+        //-----------------------------------------------------------
+        // Styles list management
+        //
+
+        private void setTypeface(Face face)
+        {
+            if (rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.typeFace = face;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.typeFace = face;
+            }
+        }
+
+        private void setTypeSize(ushort points)
+        {
+            if (rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.typeSize = points;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.typeSize = points;
+            }
+        }
+
+        private void setTypeCompress(Compress comp)
+        {
+            if (rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.typeCompress = comp;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.typeCompress = comp;
+            }
+        }
+
+        private void setTypeBaseline(Baseline baseline)
+        {
+            if (rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.typeBaseline = baseline;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.typeBaseline = baseline;
+            }
+        }
+
+        private void setBold(bool bold)
+        {
+            if (rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.isBold = bold;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.isBold = bold;
+            }
+        }
+
+        private void setItalic(bool italic)
+        {
+            if (rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.isItalic = italic;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.isItalic = italic;
+            }
+        }
+
+        private void setUnderline(bool underline)
+        {
+            if (rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.isUnderline = underline;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.isUnderline = underline;
+            }
+        }
+
+        private void setOutline(bool outline)
+        {
+            if (rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.isOutline = outline;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.isOutline = outline;
+            }
+        }
+
+        private void setShade(Shading shade)
+        {
+            if (rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.shade = shade;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.shade = shade;
+            }
+        }
+
+        private void setJustify(ParagraphJust justify)
+        {
+            if (justify != styleSet.Last().Value.justification && rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.justification = justify;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.justification = justify;
+            }
+        }
+
+        private void setLineSpace(float lineSpace)
+        {
+            if (rTxtCtrl.TextLength > styleSet.Last().Key)
+            {
+                StyleInfo newStyle = new StyleInfo(styleSet.Last().Value);
+                newStyle.lineSpacing = lineSpace;
+                styleSet.Add(rTxtCtrl.TextLength, newStyle);
+            }
+            else
+            {
+                styleSet.Last().Value.lineSpacing = lineSpace;
+            }
+        }
+
+        private void ApplyStyles()
+        {
+            int startPos = 0;
+            StyleInfo lastStyle = styleSet.First().Value;
+
+            bool first = true;
+            foreach (int endPos in styleSet.Keys)
+            {
+                if (first)
+                {
+                    first = false;
+                    continue;
+                }
+
+                // Apply style to previous segment
+                rTxtCtrl.Select(startPos, endPos - startPos);
+
+                StyleRange(startPos, endPos, lastStyle);
+
+                // Set for next segment
+                startPos = endPos;
+                lastStyle = styleSet[endPos];
+            }
+
+            // Apply style to last segment
+            StyleRange(startPos, rTxtCtrl.TextLength, lastStyle);
+
+            // Reset insertion point to start
+            rTxtCtrl.Select(0, 0);
+        }
+
+        private void StyleRange(int startPos, int endPos, StyleInfo style)
+        {
+            rTxtCtrl.Select(startPos, endPos - startPos);
+
+            System.Drawing.Font newFont = new System.Drawing.Font(style.getFontName(), style.typeSize, style.getFontStyle());
+            rTxtCtrl.SelectionFont = newFont;
+
+            HorizontalAlignment hAlign = HorizontalAlignment.Left;
+            if (style.justification == ParagraphJust.Center)
+                hAlign = HorizontalAlignment.Center;
+            else if (style.justification == ParagraphJust.Right)
+                hAlign = HorizontalAlignment.Right;
+            rTxtCtrl.SelectionAlignment = hAlign;
+        }
+
+
+        //-----------------------------------------------------------
+        // Main document parse routine
+        //
 
         /// <summary>
         /// Parse formatted text of body to RichTextBox control
@@ -105,7 +450,7 @@ namespace CanonTxtCvt
                                 // -1 = error
             short state = 0;    //  0 = start / between blocks
                                 //  1 = 0x10 block - format: styles
-                                //  2 = 0x11 block - format: paragraph & page break
+                                //  2 = 0x11 block - format: tab, paragraph & page break
                                 //  3 = 0x12 block - format: line spacing, justification (TODO - structure unknown)
                                 //  4 = 0x13 block - text: base code page
                                 //  5 = 0x14 block - text: symbol code page #1
@@ -119,6 +464,8 @@ namespace CanonTxtCvt
             {
                 lastCh = ch;
                 ch = docText[pos++];
+
+                rTxtCtrl.SelectionStart = rTxtCtrl.TextLength;
 
                 switch (state)
                 {
@@ -150,7 +497,7 @@ namespace CanonTxtCvt
                             switch (ch)
                             {
                                 case 0x02:
-                                    // Seen @ end of pre-text 0x10 block - ignore
+                                    // Seen @ end of pre-text 0x10 block - ignore...
                                     break;
 
                                 case 0x10:      // end of 0x10 block -> start
@@ -163,7 +510,7 @@ namespace CanonTxtCvt
                                     closer = docText[pos++];
                                     checkClose = true;
 
-                                    // TODO
+                                    setTypeface((Face)toVal);
                                     break;
 
                                 case (byte)'0': // Type size change
@@ -172,7 +519,7 @@ namespace CanonTxtCvt
                                     closer = docText[pos++];
                                     checkClose = true;
 
-                                    // TODO
+                                    setTypeSize(toVal);
                                     break;
 
                                 case (byte)'2': // Type expand/condense change
@@ -181,7 +528,7 @@ namespace CanonTxtCvt
                                     closer = docText[pos++];
                                     checkClose = true;
 
-                                    // TODO
+                                    setTypeCompress((Compress)toVal);
                                     break;
 
                                 case (byte)'@': // Underline change
@@ -190,7 +537,7 @@ namespace CanonTxtCvt
                                     closer = docText[pos++];
                                     checkClose = true;
 
-                                    // TODO
+                                    setUnderline(toVal == 1);
                                     break;
 
                                 case (byte)'B': // Bold change
@@ -199,8 +546,8 @@ namespace CanonTxtCvt
                                     closer = docText[pos++];
                                     checkClose = true;
 
-                                    // TODO
-                                    break;
+                                    setBold(toVal == 1);
+                                     break;
 
                                 case (byte)'D': // Italic change
                                     fmVal = docText[pos++];
@@ -208,7 +555,7 @@ namespace CanonTxtCvt
                                     closer = docText[pos++];
                                     checkClose = true;
 
-                                    // TODO
+                                    setItalic(toVal == 1);
                                     break;
 
                                 case (byte)'F': // Outline change
@@ -217,7 +564,7 @@ namespace CanonTxtCvt
                                     closer = docText[pos++];
                                     checkClose = true;
 
-                                    // TODO
+                                    setOutline(toVal == 1);
                                     break;
 
                                 case (byte)'H': // Super/Sub-script change
@@ -226,7 +573,7 @@ namespace CanonTxtCvt
                                     closer = docText[pos++];
                                     checkClose = true;
 
-                                    // TODO
+                                    setTypeBaseline((Baseline)toVal);
                                     break;
 
                                 case (byte)'J': // Shading change
@@ -235,7 +582,7 @@ namespace CanonTxtCvt
                                     closer = docText[pos++];
                                     checkClose = true;
 
-                                    // TODO - unsupported?
+                                    setShade((Shading)toVal);
                                     break;
                             }
 
@@ -269,17 +616,17 @@ namespace CanonTxtCvt
 
                             case 0x81:  // Paragraph - left justified
                                 rTxtCtrl.Text += "\r\n";
-                                // TODO
+                                setJustify(ParagraphJust.Left);
                                 break;
 
                             case 0x84:  // Paragraph - center justified
-                                rTxtCtrl.Text += "\r\n";
-                                // TODO
+                                //rTxtCtrl.Text += "\r\n";
+                                setJustify(ParagraphJust.Center);
                                 break;
 
                             case 0x85:  // Paragraph - right justified
-                                rTxtCtrl.Text += "\r\n";
-                                // TODO
+                                //rTxtCtrl.Text += "\r\n";
+                                setJustify(ParagraphJust.Right);
                                 break;
 
                             default:
@@ -326,7 +673,8 @@ namespace CanonTxtCvt
                             default:
                                 // Text character
                                 byte[] bytes = { ch };
-                                rTxtCtrl.Text += Characters.GetChar(0x13, bytes, form);
+                                //rTxtCtrl.Text += Characters.GetChar(0x13, bytes, form);
+                                rTxtCtrl.AppendText(Characters.GetChar(0x13, bytes, form));                          
                                 break;
                         }
                         break;
@@ -362,6 +710,11 @@ namespace CanonTxtCvt
                         break;
                 }
             }
+
+            // TODO:  Apply styles to format text
+            ApplyStyles();
+
+            // TODO:  Add annotations ?
 
             return "  - Done";
         }
